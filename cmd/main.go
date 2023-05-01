@@ -54,8 +54,6 @@ func worker(deliveryMessage <-chan amqp.Delivery, usecase *usecases.CalculateFin
 		}
 
 		input.Tax = 10.0
-
-		fmt.Println("Input DTO", input)
 		_, err = usecase.Execute(input)
 		if err != nil {
 			panic(err)
