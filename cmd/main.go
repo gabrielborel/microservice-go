@@ -1,65 +1,10 @@
 package main
 
-import (
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"sync"
-
-	"github.com/gabrielborel/microservice-go/internal/order/infra/database"
-	"github.com/gabrielborel/microservice-go/internal/order/usecases"
-	"github.com/gabrielborel/microservice-go/pkg/rabbitmq"
-	amqp "github.com/rabbitmq/amqp091-go"
-)
+import "net/http"
 
 func main() {
-	db, err := sql.Open("postgres", "postgres://docker:docker@postgres:5432/orders?sslmode=disable")
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-
-	repository := database.NewOrderRepository(db)
-	usecase := usecases.NewCalculateFinalPriceUseCase(repository)
-	ch, err := rabbitmq.OpenChannel()
-	if err != nil {
-		panic(err)
-	}
-	defer ch.Close()
-
-	maxWorkers := 20
-	wg := sync.WaitGroup{}
-
-	out := make(chan amqp.Delivery)
-	go rabbitmq.Consume(ch, out)
-
-	wg.Add(maxWorkers)
-	for i := 0; i < maxWorkers; i++ {
-		defer wg.Done()
-		go worker(out, usecase, i)
-	}
-	wg.Wait()
-}
-
-func worker(deliveryMessage <-chan amqp.Delivery, usecase *usecases.CalculateFinalPriceUseCase, workerId int) {
-	for msg := range deliveryMessage {
-		var input usecases.OrderInputDTO
-		err := json.Unmarshal(msg.Body, &input)
-		if err != nil {
-			fmt.Println("Error while unmarshalling message", err)
-		}
-
-		input.Tax = 10.0
-		_, err = usecase.Execute(input)
-		if err != nil {
-			panic(err)
-		}
-
-		println("Received a message from worker: %s", workerId)
-		msg.Ack(false)
-	}
+	http.HandleFunc("/h", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello World!"))
+	})
+	http.ListenAndServe(":8080", nil)
 }
